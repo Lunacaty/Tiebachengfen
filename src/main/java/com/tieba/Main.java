@@ -66,6 +66,8 @@ public class Main {
         for (Map.Entry<String, Integer> entry : list) {
             System.out.println(entry.getKey() + ": " + entry.getValue());
         }
+        System.out.println("查询完成,键入回车退出...");
+        scanner.nextLine();
         scanner.close();
     }
     
