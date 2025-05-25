@@ -17,14 +17,18 @@ import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
+import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
+import org.openqa.selenium.support.ui.ExpectedConditions;
+import org.openqa.selenium.support.ui.WebDriverWait;
 
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.*;
 
 public class Main {
@@ -47,7 +51,9 @@ public class Main {
         try {
             
             ChromeOptions options = new ChromeOptions();
+            
             options.addArguments("--disable-javascript");
+            options.addArguments("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36...");
             Map<String, Element> map = main.getPages(page, forumName);
             System.setProperty("webdriver.chrome.driver","E:\\Downloads\\chromedriver-win64\\chromedriver.exe");
             WebDriver driver = new ChromeDriver(options);
@@ -76,16 +82,20 @@ public class Main {
     public void getBars(Element container,WebDriver driver) {
         Elements users = container.select("span.member");
         Scanner inputScanner = new Scanner(System.in);
+        Boolean flag = false;
+        API api = new API();
         for (Element user : users) {
             System.out.println("正在查询第"+(count+1)+"个用户");
             count++;
             Element username = user.selectFirst(".user_name");
             String homeUrl = username.attr("href");
-            API api = new API();
-            Response res = api.GET(homeUrl);
+            Response res = null;
+            if(!flag){
+                res = api.GET(homeUrl);
+            }
             String html = null;
-            if(res.getData().toString().contains("ç½\u0091ç»\u009Cä¸\u008Dç»\u0099å\u008A\u009Bï¼\u008Cè¯·ç¨\u008Då\u0090\u008Eé\u0087\u008Dè¯\u0095")){
-                
+            if(flag||res.getData().toString().contains("ç½\u0091ç»\u009Cä¸\u008Dç»\u0099å\u008A\u009Bï¼\u008Cè¯·ç¨\u008Då\u0090\u008Eé\u0087\u008Dè¯\u0095")){
+                flag = true;
                 driver.get(api.serverUrl + homeUrl);
                 if(driver.getPageSource().contains("百度安全验证")){
                     System.out.println("检测到百度安全验证，请手动完成验证后按下回车键继续...");
@@ -154,8 +164,8 @@ public class Main {
             System.out.print("昵称:" + nickname + " 关注查询成功\n");
             this.bars.put("有效数据", this.bars.get("有效数据") == null ? 1 : this.bars.get("有效数据") + 1);
         }
-        
     }
+    
     
     public Map<String, Element> getPages(int page, String forumName) {
         System.out.println("正在获取第" + 1 + "页HTML...");
