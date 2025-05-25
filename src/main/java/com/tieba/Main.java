@@ -127,12 +127,12 @@ public class Main {
                         Map<String, Object> honor = (LinkedHashMap<String, Object>) data.get("honor");
                         grades = (LinkedHashMap<String, Object>) honor.get("grade");
                     } catch (NullPointerException e) {
-                        driver.get(api.serverUrl + "/home/user/profile?un=" + usernameStr);
-                        html = driver.getPageSource();
-                        doc = Jsoup.parse(html);
-                        Element pre = doc.selectFirst("pre");
-                        result = mapper.readValue(pre.text(), new TypeReference<LinkedHashMap<String, Object>>() {});
                         try {
+                            driver.get(api.serverUrl + "/home/get/panel?un=" + usernameStr);
+                            html = driver.getPageSource();
+                            doc = Jsoup.parse(html);
+                            Element pre = doc.selectFirst("pre");
+                            result = mapper.readValue(pre.text(), new TypeReference<LinkedHashMap<String, Object>>() {});
                             Map<String, Object> data = (LinkedHashMap<String, Object>) result.get("data");
                             Map<String, Object> honor = (LinkedHashMap<String, Object>) data.get("honor");
                             grades = (LinkedHashMap<String, Object>) honor.get("grade");
