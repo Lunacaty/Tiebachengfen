@@ -127,9 +127,25 @@ public class Main {
                         Map<String, Object> honor = (LinkedHashMap<String, Object>) data.get("honor");
                         grades = (LinkedHashMap<String, Object>) honor.get("grade");
                     } catch (NullPointerException e) {
-                        this.bars.put("无效数据", this.bars.get("无效数据") == null ? 1 : this.bars.get("无效数据") + 1);
-                        System.out.print("昵称:" + nickname + " 活跃查询失败--空指针\n");
-                        continue;
+                        driver.get(api.serverUrl + "/home/user/profile?un=" + usernameStr);
+                        html = driver.getPageSource();
+                        doc = Jsoup.parse(html);
+                        Element pre = doc.selectFirst("pre");
+                        result = mapper.readValue(pre.text(), new TypeReference<LinkedHashMap<String, Object>>() {});
+                        try {
+                            Map<String, Object> data = (LinkedHashMap<String, Object>) result.get("data");
+                            Map<String, Object> honor = (LinkedHashMap<String, Object>) data.get("honor");
+                            grades = (LinkedHashMap<String, Object>) honor.get("grade");
+                            if(grades == null){
+                                this.bars.put("无效数据", this.bars.get("无效数据") == null ? 1 : this.bars.get("无效数据") + 1);
+                                System.out.print("昵称:" + nickname + " 活跃查询失败--空指针\n");
+                                continue;
+                            }
+                        } catch (Exception ex) {
+                            this.bars.put("无效数据", this.bars.get("无效数据") == null ? 1 : this.bars.get("无效数据") + 1);
+                            System.out.print("昵称:" + nickname + " 活跃查询失败--空指针\n");
+                            continue;
+                        }
                     } catch (ClassCastException e){
                         this.bars.put("无效数据", this.bars.get("无效数据") == null ? 1 : this.bars.get("无效数据") + 1);
                         System.out.print("昵称:" + nickname + " 活跃查询失败--类型转换\n");
