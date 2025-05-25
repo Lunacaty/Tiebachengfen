@@ -108,7 +108,6 @@ public class Main {
                 } catch (JavascriptException e) {
                     System.out.println("JS错误,1s后重试...");
                     Thread.sleep(1000);
-                    continue;
                 }
                 html = driver.getPageSource();
             } else {
