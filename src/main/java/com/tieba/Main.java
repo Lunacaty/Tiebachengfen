@@ -8,6 +8,7 @@ import com.tieba.request.API;
 import com.tieba.request.Response;
 import lombok.SneakyThrows;
 import org.htmlunit.WebClient;
+import org.htmlunit.corejs.javascript.JavaScriptException;
 import org.htmlunit.html.HtmlDivision;
 import org.htmlunit.html.HtmlElement;
 import org.htmlunit.html.HtmlPage;
@@ -18,6 +19,7 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 import org.openqa.selenium.By;
+import org.openqa.selenium.JavascriptException;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
@@ -98,9 +100,13 @@ public class Main {
             if(flag||res.getData().toString().contains("ç½\u0091ç»\u009Cä¸\u008Dç»\u0099å\u008A\u009Bï¼\u008Cè¯·ç¨\u008Då\u0090\u008Eé\u0087\u008Dè¯\u0095")){
                 flag = true;
                 driver.get(api.serverUrl + homeUrl);
-                if(driver.getPageSource().contains("百度安全验证")){
-                    System.out.println("检测到百度安全验证，请手动完成验证后按下回车键继续...");
-                    scanner.nextLine();;
+                try {
+                    if(driver.getPageSource().contains("百度安全验证")){
+                        System.out.println("检测到百度安全验证，请手动完成验证后按下回车键继续...");
+                        scanner.nextLine();;
+                    }
+                } catch (JavascriptException e) {
+                    continue;
                 }
                 html = driver.getPageSource();
             } else {
