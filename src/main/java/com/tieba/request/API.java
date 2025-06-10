@@ -47,6 +47,7 @@ public class API {
     public Response GET(String url, String... params) {
         
         URIBuilder uriBuilder = new URIBuilder(serverUrl + url);
+//        System.out.println("GET " + serverUrl + url);
         if (params.length > 0) {
             for (String param : params) {
                 String[] keyValue = param.split("=");
@@ -57,6 +58,7 @@ public class API {
                 }
             }
         }
+//        System.out.println(uriBuilder.build().toString());
         
         HttpGet request = new HttpGet(uriBuilder.build());
         request.setHeader("Accept", "application/json; charset=UTF-8");

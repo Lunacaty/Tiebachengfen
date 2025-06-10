@@ -81,45 +81,72 @@
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-shade-plugin</artifactId>
-                <version>3.5.1</version>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <version>3.7.0</version>
                 <executions>
                     <execution>
+                        <id>copy-dependencies</id>
                         <phase>package</phase>
                         <goals>
-                            <goal>shade</goal>
+                            <goal>copy-dependencies</goal>
                         </goals>
                         <configuration>
-                            <transformers>
-                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                                    <mainClass>com.tieba.Main</mainClass>
-                                </transformer>
-                            </transformers>
+                            <outputDirectory>${project.build.directory}/lib</outputDirectory>
+                            <overWriteReleases>false</overWriteReleases>
+                            <overWriteSnapshots>false</overWriteSnapshots>
+                            <overWriteIfNewer>true</overWriteIfNewer>
+                            <includeScope>runtime</includeScope>
                         </configuration>
                     </execution>
                 </executions>
             </plugin>
             <plugin>
-                <groupId>com.akathist.maven.plugins.launch4j</groupId>
-                <artifactId>launch4j-maven-plugin</artifactId>
-                <version>2.6.0</version>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>3.4.2</version>
+                <configuration>
+                    <archive>
+                        <manifest>
+                            <addClasspath>true</addClasspath>
+                            <classpathPrefix>lib/</classpathPrefix>
+                            <mainClass>com.tieba.Main</mainClass>
+                        </manifest>
+                    </archive>
+                </configuration>
+            </plugin>
+
+
+
+
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
                 <executions>
                     <execution>
-                        <id>launch4j</id>
+                        <id>jpackage</id>
                         <phase>package</phase>
                         <goals>
-                            <goal>launch4j</goal>
+                            <goal>exec</goal>
                         </goals>
                         <configuration>
-                            <headerType>console</headerType>
-                            <outfile>target/${project.artifactId}.exe</outfile>
-                            <jar>target/${project.build.finalName}.jar</jar>
-                            <dontWrapJar>false</dontWrapJar>
-                            <jre>
-                                <minVersion>21</minVersion>
-                                <jdkPreference>jdkOnly</jdkPreference>
-                            </jre>
-<!--                             <icon>src/main/resources/icon.ico</icon>-->
+                            <executable>E:\Tools\JDK21\bin\jpackage.exe</executable>
+                            <arguments>
+                                <argument>--type</argument>
+                                <argument>msi</argument>
+                                <argument>--name</argument>
+                                <argument>tiebachengfen</argument>
+                                <argument>--input</argument>
+                                <argument>${project.build.directory}</argument>
+                                <argument>--main-jar</argument>
+                                <argument>tiebachengfen-1.0-SNAPSHOT.jar</argument>
+                                <argument>--main-class</argument>
+                                <argument>com.tieba.Main</argument>
+                                <argument>--dest</argument>
+                                <argument>E:\exec\3</argument>
+                                <argument>--verbose</argument>
+                                <argument>--win-console</argument>
+                                <argument>--win-dir-chooser</argument>
+                            </arguments>
                         </configuration>
                     </execution>
                 </executions>
