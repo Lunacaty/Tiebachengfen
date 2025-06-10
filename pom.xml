@@ -132,9 +132,9 @@
                             <executable>E:\Tools\JDK21\bin\jpackage.exe</executable>
                             <arguments>
                                 <argument>--type</argument>
-                                <argument>msi</argument>
+                                <argument>app-image</argument>
                                 <argument>--name</argument>
-                                <argument>tiebachengfen</argument>
+                                <argument>CompositionOfBaiduBars</argument>
                                 <argument>--input</argument>
                                 <argument>${project.build.directory}</argument>
                                 <argument>--main-jar</argument>
@@ -142,10 +142,9 @@
                                 <argument>--main-class</argument>
                                 <argument>com.tieba.Main</argument>
                                 <argument>--dest</argument>
-                                <argument>E:\exec\3</argument>
+                                <argument>E:\exec\4</argument>
                                 <argument>--verbose</argument>
                                 <argument>--win-console</argument>
-                                <argument>--win-dir-chooser</argument>
                             </arguments>
                         </configuration>
                     </execution>
