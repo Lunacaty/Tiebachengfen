@@ -95,7 +95,7 @@ public class Main {
             e.printStackTrace();
         }
         List<Map.Entry<String, Integer>> list = new ArrayList<>(main.bars.entrySet());
-        list.sort((entry1, entry2) -> entry2.getValue().compareTo(entry1.getValue()));
+        list.sort((entry1, entry2) -> -entry2.getValue().compareTo(entry1.getValue()));
         for (Map.Entry<String, Integer> entry : list) {
             System.out.println(entry.getKey() + ": " + entry.getValue());
         }
