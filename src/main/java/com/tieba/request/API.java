@@ -4,26 +4,30 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.SneakyThrows;
 
-import org.apache.hc.client5.http.protocol.HttpClientContext;
-import org.apache.hc.core5.http.protocol.HttpContext;
-import org.apache.http.client.CookieStore;
+import org.apache.hc.client5.http.classic.methods.HttpGet;
+import org.apache.hc.client5.http.classic.methods.HttpPost;
+import org.apache.hc.client5.http.config.RequestConfig;
+import org.apache.hc.client5.http.cookie.BasicCookieStore;
+import org.apache.hc.client5.http.cookie.CookieStore;
+import org.apache.hc.client5.http.entity.UrlEncodedFormEntity;
+import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
+import org.apache.hc.client5.http.impl.classic.CloseableHttpResponse;
+import org.apache.hc.client5.http.impl.classic.HttpClients;
+import org.apache.hc.core5.http.NameValuePair;
+import org.apache.hc.core5.http.message.BasicNameValuePair;
+import org.apache.hc.core5.http.io.entity.EntityUtils;
+import org.apache.hc.core5.net.URIBuilder;
+import org.apache.hc.core5.util.Timeout;
 import org.apache.http.client.config.CookieSpecs;
-import org.apache.http.client.config.RequestConfig;
-import org.apache.http.client.methods.CloseableHttpResponse;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.client.utils.URIBuilder;
-import org.apache.http.cookie.Cookie;
-import org.apache.http.impl.client.BasicCookieStore;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClients;
-import org.apache.http.util.EntityUtils;
 
 import java.io.IOException;
-import java.net.URISyntaxException;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Semaphore;
 
 public class API {
     private static final ObjectMapper objectMapper = new ObjectMapper();
@@ -35,16 +39,20 @@ public class API {
             .setDefaultCookieStore(cookieStore)
             .setDefaultRequestConfig(RequestConfig.custom()
                     .setCookieSpec(CookieSpecs.STANDARD)
+                    .setConnectTimeout(Timeout.ofMilliseconds(5000))
+                    .setResponseTimeout(Timeout.ofMilliseconds(5000))
+                    .setConnectionRequestTimeout(Timeout.ofMilliseconds(5000))
                     .build())
             .build();
     
-    
+    private static final Semaphore semaphore = new Semaphore(50);
     public void remakeClient() {
         client = HttpClients.createDefault();
     }
     
     @SneakyThrows
     public Response GET(String url, String... params) {
+        
         
         URIBuilder uriBuilder = new URIBuilder(serverUrl + url);
 //        System.out.println("GET " + serverUrl + url);
@@ -63,19 +71,63 @@ public class API {
         HttpGet request = new HttpGet(uriBuilder.build());
         request.setHeader("Accept", "application/json; charset=UTF-8");
         
+        semaphore.acquire();
         try (CloseableHttpResponse response = client.execute(request)) {
-            if (response.getStatusLine().getStatusCode() == 200) {
+            if (response.getCode() == 200) {
                 String responseBody = EntityUtils.toString(response.getEntity());
                 try {
+                    semaphore.release();
                     return objectMapper.readValue(responseBody, Response.class);
                 } catch (JsonProcessingException e) {
+                    semaphore.release();
                     return new Response(200, "请求成功", responseBody);
                 }
             } else {
-                return Response.error("请求失败", response.getStatusLine().getStatusCode());
+                semaphore.release();
+                return Response.error("请求失败", response.getCode());
             }
         } catch (IOException e) {
             e.printStackTrace();
+            semaphore.release();
+            return Response.error("请求失败");
+        }
+    }
+    
+    @SneakyThrows
+    public Response POST(String url, Map<String, String> body) {
+        
+        URIBuilder uriBuilder = new URIBuilder(serverUrl + url);
+        
+//        System.out.println("GET " + serverUrl + url);
+        
+        HttpPost request = new HttpPost(uriBuilder.build());
+        request.setHeader("Content-Type","application/x-www-form-urlencoded");
+        
+        List<NameValuePair> params = new ArrayList<>();
+        for (Map.Entry<String, String> entry : body.entrySet()) {
+            params.add(new BasicNameValuePair(entry.getKey(), entry.getValue()));
+        }
+        
+        request.setEntity(new UrlEncodedFormEntity(params, StandardCharsets.UTF_8));
+        
+        semaphore.acquire();
+        try (CloseableHttpResponse response = client.execute(request)) {
+            if (response.getCode() == 200) {
+                String responseBody = EntityUtils.toString(response.getEntity());
+                try {
+                    semaphore.release();
+                    return objectMapper.readValue(responseBody, Response.class);
+                } catch (JsonProcessingException e) {
+                    semaphore.release();
+                    return new Response(200, "请求成功", responseBody);
+                }
+            } else {
+                semaphore.release();
+                return Response.error("请求失败", response.getCode());
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+            semaphore.release();
             return Response.error("请求失败");
         }
     }
