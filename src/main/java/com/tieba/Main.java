@@ -152,7 +152,7 @@ public class Main {
             Matcher matc = patt.matcher(clazz);
             String level = matc.find() ? matc.group(0) : null;
             if (Integer.parseInt(level) < LEVEL) {
-                System.out.println("用户" + nickname + "在的等级:" + level + "低于" + LEVEL + "级,跳过.无效数据");
+                System.out.println("用户" + nickname + "在的等级:" + level + "低于" + LEVEL + "级,跳过.");
                 bars.put("无效数据", bars.get("无效数据") + 1);
                 continue;
             }
@@ -211,11 +211,14 @@ public class Main {
                 System.out.print(forum + " ");
                 bars.put(forum, bars.get(forum) == null ? 1 : bars.get(forum) + 1);
             }
+            System.out.println();
             bars.put("有效数据", bars.get("有效数据") + 1);
         }
     }
     
     private void processRest(List<Map<String, Object>> restUsers) {
+        System.out.println("正在查询第"+(count+1)+"个用户");
+        count++;
         API api = new API();
         for (Map<String, Object> user : restUsers) {
             String username = (String) user.get("username");
