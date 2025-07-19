@@ -119,6 +119,7 @@ public class Main {
         }
         System.out.println("输出完毕,键入回车退出程序");
         scanner.nextLine();
+        scanner.nextLine();
     }
     
     @SneakyThrows
@@ -142,7 +143,7 @@ public class Main {
             Matcher matc = patt.matcher(clazz);
             String level = matc.find() ? matc.group(0) : null;
             if (Integer.parseInt(level) < LEVEL) {
-                System.out.println("用户" + nickname + "的等级:" + level + "低于" + LEVEL + "级,跳过.无效数据");
+                System.out.println("用户" + nickname + "在的等级:" + level + "低于" + LEVEL + "级,跳过.无效数据");
                 bars.put("无效数据", bars.get("无效数据") + 1);
                 continue;
             }
@@ -191,7 +192,7 @@ public class Main {
             List<String> forumResult = new ArrayList<>();
             for (Map<String, Object> forum : non_gconforum) {
                 if (Integer.parseInt((String) forum.get("level_id")) < LEVEL) {
-                    System.out.println(nickname + "的等级:" + forum.get("level_id") + "低于" + LEVEL + "级,跳过.无效数据");
+                    System.out.println(nickname + "在" + forum.get("name") + "的等级:" + forum.get("level_id") + "低于" + LEVEL + "级,跳过.无效数据");
                     bars.put("无效数据", bars.get("无效数据") + 1);
                     continue;
                 }
