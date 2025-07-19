@@ -117,6 +117,8 @@ public class Main {
         for (Map.Entry<String, Integer> entry : list) {
             System.out.println(entry.getKey() + ": " + entry.getValue());
         }
+        System.out.println("输出完毕,键入回车退出程序");
+        scanner.nextLine();
     }
     
     @SneakyThrows
