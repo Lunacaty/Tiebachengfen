@@ -86,7 +86,7 @@ public class Main {
         System.out.println("确定查询条件:");
         System.out.println("贴吧名称: " + forumName);
         System.out.println("页数: " + page);
-        System.out.println("Leve: " + LEVEL);
+        System.out.println("Level: " + LEVEL);
         try {
             
             ChromeOptions options = new ChromeOptions();
@@ -125,7 +125,7 @@ public class Main {
         System.out.println("查询完毕,查询条件:");
         System.out.println("贴吧名称: " + forumName);
         System.out.println("页数: " + page);
-        System.out.println("Leve: " + LEVEL);
+        System.out.println("Level: " + LEVEL);
         System.out.println("键入回车退出程序");
         scanner.nextLine();
         scanner.nextLine();
