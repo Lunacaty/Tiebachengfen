@@ -82,6 +82,11 @@ public class Main {
         BDUSS = scanner.nextLine();
         System.out.println("请输入查询等级,这个参数指明低于该等级的用户不会被统计,并且是双向的");
         LEVEL = scanner.nextInt();
+        
+        System.out.println("确定查询条件:");
+        System.out.println("贴吧名称: " + forumName);
+        System.out.println("页数: " + page);
+        System.out.println("Leve: " + LEVEL);
         try {
             
             ChromeOptions options = new ChromeOptions();
@@ -117,7 +122,11 @@ public class Main {
         for (Map.Entry<String, Integer> entry : list) {
             System.out.println(entry.getKey() + ": " + entry.getValue());
         }
-        System.out.println("输出完毕,键入回车退出程序");
+        System.out.println("查询完毕,查询条件:");
+        System.out.println("贴吧名称: " + forumName);
+        System.out.println("页数: " + page);
+        System.out.println("Leve: " + LEVEL);
+        System.out.println("键入回车退出程序");
         scanner.nextLine();
         scanner.nextLine();
     }
@@ -193,7 +202,6 @@ public class Main {
             for (Map<String, Object> forum : non_gconforum) {
                 if (Integer.parseInt((String) forum.get("level_id")) < LEVEL) {
                     System.out.println(nickname + "在" + forum.get("name") + "的等级:" + forum.get("level_id") + "低于" + LEVEL + "级,跳过.无效数据");
-                    bars.put("无效数据", bars.get("无效数据") + 1);
                     continue;
                 }
                 forumResult.add(forum.get("name").toString());
@@ -273,6 +281,7 @@ public class Main {
                         System.out.print(" " + forum);
                         this.bars.put(forum, this.bars.get(forum) == null ? 1 : this.bars.get(forum) + 1);
                     }
+                    System.out.println();
                 }
             });
             if(flag[0]) {
