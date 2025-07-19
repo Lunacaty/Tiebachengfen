@@ -122,7 +122,7 @@ public class Main {
                 res = api.GET(homeUrl);
             }
             String html = null;
-            if (flag || res.getData().toString().contains("ç½\u0091ç»\u009Cä¸\u008Dç»\u0099å\u008A\u009Bï¼\u008Cè¯·ç¨\u008Då\u0090\u008Eé\u0087\u008Dè¯\u0095")) {
+            if (flag || res.getData() == null || res.getData().toString().contains("ç½\u0091ç»\u009Cä¸\u008Dç»\u0099å\u008A\u009Bï¼\u008Cè¯·ç¨\u008Då\u0090\u008Eé\u0087\u008Dè¯\u0095")) {
                 flag = true;
                 driver.get(api.serverUrl + homeUrl);
                 while (true) {

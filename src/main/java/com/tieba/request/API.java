@@ -58,7 +58,7 @@ public class API {
                 }
             }
         }
-//        System.out.println(uriBuilder.build().toString());
+        System.out.println(uriBuilder.build().toString());
         
         HttpGet request = new HttpGet(uriBuilder.build());
         request.setHeader("Accept", "application/json; charset=UTF-8");

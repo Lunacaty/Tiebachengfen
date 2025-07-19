@@ -62,94 +62,97 @@
             <version>2.6.0</version>
         </dependency>
     </dependencies>
-    <build>
-        <resources>
-            <resource>
-                <directory>src/main/resources</directory>
-            </resource>
-        </resources>
-        <plugins>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.11.0</version>
+
+<build>
+<resources>
+    <resource>
+        <directory>src/main/resources</directory>
+    </resource>
+</resources>
+
+<plugins>
+    <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.11.0</version>
+        <configuration>
+            <source>21</source>
+            <target>21</target>
+            <release>21</release>
+        </configuration>
+    </plugin>
+    <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-dependency-plugin</artifactId>
+        <version>3.7.0</version>
+        <executions>
+            <execution>
+                <id>copy-dependencies</id>
+                <phase>package</phase>
+                <goals>
+                    <goal>copy-dependencies</goal>
+                </goals>
                 <configuration>
-                    <source>21</source>
-                    <target>21</target>
-                    <release>21</release>
+                    <outputDirectory>${project.build.directory}/lib</outputDirectory>
+                    <overWriteReleases>false</overWriteReleases>
+                    <overWriteSnapshots>false</overWriteSnapshots>
+                    <overWriteIfNewer>true</overWriteIfNewer>
+                    <includeScope>runtime</includeScope>
                 </configuration>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-dependency-plugin</artifactId>
-                <version>3.7.0</version>
-                <executions>
-                    <execution>
-                        <id>copy-dependencies</id>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>copy-dependencies</goal>
-                        </goals>
-                        <configuration>
-                            <outputDirectory>${project.build.directory}/lib</outputDirectory>
-                            <overWriteReleases>false</overWriteReleases>
-                            <overWriteSnapshots>false</overWriteSnapshots>
-                            <overWriteIfNewer>true</overWriteIfNewer>
-                            <includeScope>runtime</includeScope>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-jar-plugin</artifactId>
-                <version>3.4.2</version>
+            </execution>
+        </executions>
+    </plugin>
+    <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
+        <version>3.4.2</version>
+        <configuration>
+            <archive>
+                <manifest>
+                    <addClasspath>true</addClasspath>
+                    <classpathPrefix>lib/</classpathPrefix>
+                    <mainClass>com.tieba.Main</mainClass>
+                </manifest>
+            </archive>
+        </configuration>
+    </plugin>
+
+
+
+
+    <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>exec-maven-plugin</artifactId>
+        <version>3.1.0</version>
+        <executions>
+            <execution>
+                <id>jpackage</id>
+                <phase>package</phase>
+                <goals>
+                    <goal>exec</goal>
+                </goals>
                 <configuration>
-                    <archive>
-                        <manifest>
-                            <addClasspath>true</addClasspath>
-                            <classpathPrefix>lib/</classpathPrefix>
-                            <mainClass>com.tieba.Main</mainClass>
-                        </manifest>
-                    </archive>
+                    <executable>E:\Tools\JDK21\bin\jpackage.exe</executable>
+                    <arguments>
+                        <argument>--type</argument>
+                        <argument>app-image</argument>
+                        <argument>--name</argument>
+                        <argument>CompositionOfBaiduBars</argument>
+                        <argument>--input</argument>
+                        <argument>${project.build.directory}</argument>
+                        <argument>--main-jar</argument>
+                        <argument>tiebachengfen-1.0-SNAPSHOT.jar</argument>
+                        <argument>--main-class</argument>
+                        <argument>com.tieba.Main</argument>
+                        <argument>--dest</argument>
+                        <argument>E:\exec\5</argument>
+                        <argument>--verbose</argument>
+                        <argument>--win-console</argument>
+                    </arguments>
                 </configuration>
-            </plugin>
-
-
-
-
-            <plugin>
-                <groupId>org.codehaus.mojo</groupId>
-                <artifactId>exec-maven-plugin</artifactId>
-                <executions>
-                    <execution>
-                        <id>jpackage</id>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>exec</goal>
-                        </goals>
-                        <configuration>
-                            <executable>E:\Tools\JDK21\bin\jpackage.exe</executable>
-                            <arguments>
-                                <argument>--type</argument>
-                                <argument>app-image</argument>
-                                <argument>--name</argument>
-                                <argument>CompositionOfBaiduBars</argument>
-                                <argument>--input</argument>
-                                <argument>${project.build.directory}</argument>
-                                <argument>--main-jar</argument>
-                                <argument>tiebachengfen-1.0-SNAPSHOT.jar</argument>
-                                <argument>--main-class</argument>
-                                <argument>com.tieba.Main</argument>
-                                <argument>--dest</argument>
-                                <argument>E:\exec\4</argument>
-                                <argument>--verbose</argument>
-                                <argument>--win-console</argument>
-                            </arguments>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-        </plugins>
+            </execution>
+        </executions>
+    </plugin>
+</plugins>
     </build>
 </project>
