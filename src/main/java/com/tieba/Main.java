@@ -230,10 +230,10 @@ public class Main {
     }
     
     private void processRest(List<Map<String, Object>> restUsers) {
-        System.out.println("正在查询第"+(count+1)+"个用户");
-        count++;
+        Integer count = restUsers.size();
         API api = new API();
         for (Map<String, Object> user : restUsers) {
+            System.out.println("正在查询第" + (count - restUsers.indexOf(user))+ "/" + count + "个用户.");
             String username = (String) user.get("username");
             String nickname = (String) user.get("nickname");
             Response res = null;
