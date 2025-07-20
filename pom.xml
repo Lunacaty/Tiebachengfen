@@ -146,7 +146,7 @@
                         <argument>--main-class</argument>
                         <argument>com.tieba.Main</argument>
                         <argument>--dest</argument>
-                        <argument>E:\exec\6</argument>
+                        <argument>E:\exec\7</argument>
                         <argument>--verbose</argument>
                         <argument>--win-console</argument>
                     </arguments>
