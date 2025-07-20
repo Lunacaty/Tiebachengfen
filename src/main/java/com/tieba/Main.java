@@ -156,11 +156,18 @@ public class Main {
                 bars.put("无效数据", bars.get("无效数据") + 1);
                 continue;
             }
-            
-            String userJson = api.GET("/i/sys/user_json", "un=" + username, "ie=utf-8").getData().toString();
-            Pattern pat = Pattern.compile("\"id\":(\\d+)");
+            String userJson = "";
+            for(int i = 1; i<=5; i++) {
+                Response res = api.GET("/i/sys/user_json", "un=" + username, "ie=utf-8");
+                if(res.getCode() == 200){
+                    userJson = res.getData().toString();
+                    break;
+                }
+                System.out.println("第" + i + "次请求失败,尝试第" + (i + 1) + "次...");
+            }
+            Pattern pat = Pattern.compile("(?<=\"id\":)(\\d+)");
             Matcher mat = pat.matcher(userJson);
-            String friendId = mat.find() ? mat.group(1) : null;
+            String friendId = mat.find() ? mat.group(0) : null;
             if (friendId == null) {
                 System.out.println("friendId不存在");
                 continue;
@@ -180,8 +187,14 @@ public class Main {
             System.out.println("生成签名: " + sign);
             
             body.put("sign", sign);
-            
-            Response res = api.POST("/c/f/forum/like", body);
+            Response res = null;
+            for(int i = 1; i<=5; i++) {
+                res = api.POST("/c/f/forum/like", body);
+                if(res.getCode() == 200){
+                    break;
+                }
+                System.out.println("第" + i + "次请求失败,尝试第" + (i + 1) + "次...");
+            }
             ObjectMapper mapper = new ObjectMapper();
             Map<String, Object> result = mapper.readValue(res.getData().toString(), new TypeReference<LinkedHashMap<String, Object>>() {
             });
@@ -284,9 +297,9 @@ public class Main {
                         System.out.print(" " + forum);
                         this.bars.put(forum, this.bars.get(forum) == null ? 1 : this.bars.get(forum) + 1);
                     }
-                    System.out.println();
                 }
             });
+            System.out.println();
             if(flag[0]) {
                 bars.put("有效数据", this.bars.get("有效数据") + 1);
             } else{
