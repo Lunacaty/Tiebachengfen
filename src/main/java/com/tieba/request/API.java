@@ -39,9 +39,9 @@ public class API {
             .setDefaultCookieStore(cookieStore)
             .setDefaultRequestConfig(RequestConfig.custom()
                     .setCookieSpec(CookieSpecs.STANDARD)
-                    .setConnectTimeout(Timeout.ofMilliseconds(5000))
-                    .setResponseTimeout(Timeout.ofMilliseconds(5000))
-                    .setConnectionRequestTimeout(Timeout.ofMilliseconds(5000))
+                    .setConnectTimeout(Timeout.ofMilliseconds(10000))
+                    .setResponseTimeout(Timeout.ofMilliseconds(10000))
+                    .setConnectionRequestTimeout(Timeout.ofMilliseconds(10000))
                     .build())
             .build();
     

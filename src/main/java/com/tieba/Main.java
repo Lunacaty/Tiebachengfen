@@ -27,9 +27,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.*;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -38,10 +36,11 @@ public class Main {
     private static String BDUSS;
     private static Integer LEVEL;
     private static List<Map<String, Object>> REST_USERS = new ArrayList<>();
-    private static WebDriver CHROMEDRIVER = null;
+    private static List<WebDriver> drivers = new ArrayList<>();
+    private static int PAGE;
     
-    Map<String, Integer> bars = new HashMap<>();
-    int count = 0;
+    ConcurrentHashMap<String, Integer> bars = new ConcurrentHashMap<>();
+    volatile static int count = 0;
     static Scanner scanner = new Scanner(System.in);
     
     {
@@ -76,7 +75,7 @@ public class Main {
         
         System.out.println("将查询 " + forumName + " 吧");
         System.out.println("请输入页数:");
-        int page = scanner.nextInt();
+        PAGE = scanner.nextInt();
         scanner.nextLine();
         System.out.println("请输入BDUSS:(不懂百度)");
         BDUSS = scanner.nextLine();
@@ -85,7 +84,7 @@ public class Main {
         
         System.out.println("确定查询条件:");
         System.out.println("贴吧名称: " + forumName);
-        System.out.println("页数: " + page);
+        System.out.println("页数: " + PAGE);
         System.out.println("Level: " + LEVEL);
         try {
             
@@ -93,17 +92,33 @@ public class Main {
             
             options.setPageLoadStrategy(PageLoadStrategy.NONE);
             options.addArguments("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36...");
-            Map<String, Element> map = main.getPages(page, forumName);
+            Map<String, Element> map = main.getPages(forumName);
             System.setProperty("webdriver.chrome.driver", "E:\\Downloads\\chromedriver-win64\\chromedriver.exe");
-            WebDriver driver = new ChromeDriver(options);
-            CHROMEDRIVER = driver;
+//            WebDriver driver = new ChromeDriver(options);
+//            CHROMEDRIVER = driver;
             ExecutorService executor = Executors.newFixedThreadPool(32);
+            CountDownLatch latch = new CountDownLatch(map.size());
             map.forEach((k, v) -> {
                 executor.submit(() -> {
                     System.out.println("正在查询第" + k + "页数据...");
                     main.getBars(v, forumName);
+                    latch.countDown();
                 });
             });
+            latch.await();
+            System.out.println("公开关注用户查询完毕,开始处理隐藏关注用户...");
+            count = REST_USERS.size();
+            for (int i = 0; i < 6; i++) {
+                drivers.add(new ChromeDriver(options));
+            }
+            for (int i = 0; i < REST_USERS.size(); i++) {
+                int finalI = i;
+                executor.submit(() -> {
+                    main.processRest(REST_USERS.get(finalI), drivers.get(finalI % 6));
+                    System.out.println("第" + (count--) +  "个隐藏关注用户处理完毕.");
+                });
+            }
+            
             executor.shutdown();
             try {
                 executor.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
@@ -111,9 +126,6 @@ public class Main {
                 throw new RuntimeException(e);
             }
             
-            System.out.println("公开关注用户查询完毕,开始处理隐藏关注用户...");
-            main.processRest(REST_USERS);
-            driver.quit();
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -124,7 +136,7 @@ public class Main {
         }
         System.out.println("查询完毕,查询条件:");
         System.out.println("贴吧名称: " + forumName);
-        System.out.println("页数: " + page);
+        System.out.println("页数: " + PAGE);
         System.out.println("Level: " + LEVEL);
         System.out.println("键入回车退出程序");
         scanner.nextLine();
@@ -157,9 +169,9 @@ public class Main {
                 continue;
             }
             String userJson = "";
-            for(int i = 1; i<=5; i++) {
+            for (int i = 1; i <= 5; i++) {
                 Response res = api.GET("/i/sys/user_json", "un=" + username, "ie=utf-8");
-                if(res.getCode() == 200){
+                if (res.getCode() == 200) {
                     userJson = res.getData().toString();
                     break;
                 }
@@ -188,9 +200,9 @@ public class Main {
             
             body.put("sign", sign);
             Response res = null;
-            for(int i = 1; i<=5; i++) {
+            for (int i = 1; i <= 5; i++) {
                 res = api.POST("/c/f/forum/like", body);
-                if(res.getCode() == 200){
+                if (res.getCode() == 200) {
                     break;
                 }
                 System.out.println("第" + i + "次请求失败,尝试第" + (i + 1) + "次...");
@@ -229,85 +241,81 @@ public class Main {
         }
     }
     
-    private void processRest(List<Map<String, Object>> restUsers) {
-        Integer count = restUsers.size();
-        int nowIndex = 0;
+    private void processRest(Map<String, Object> user, WebDriver driver) {
         API api = new API();
-        for (Map<String, Object> user : restUsers) {
-            System.out.println("正在查询第" + ++nowIndex + "/" + count + "个用户.");
-            String username = (String) user.get("username");
-            String nickname = (String) user.get("nickname");
-            Response res = null;
-            for (int i = 1; i <= 5; i++) {
-                res = api.GET("/home/get/panel", "un=" + username);
-                if (res.getCode() == 200) {
-                    break;
-                }
-                System.out.println("第" + i + "次请求失败,尝试第" + (i + 1) + "次...");
+        String username = (String) user.get("username");
+        String nickname = (String) user.get("nickname");
+        Response res = null;
+        for (int i = 1; i <= 5; i++) {
+            res = api.GET("/home/get/panel", "un=" + username);
+            if (res.getCode() == 200) {
+                break;
             }
-            ObjectMapper mapper = new ObjectMapper();
-            LinkedHashMap<String, Object> result = null;
+            System.out.println("第" + i + "次请求失败,尝试第" + (i + 1) + "次...");
+        }
+        ObjectMapper mapper = new ObjectMapper();
+        LinkedHashMap<String, Object> result = null;
+        try {
+            result = mapper.readValue(res.getData().toString(), new TypeReference<LinkedHashMap<String, Object>>() {
+            });
+        } catch (JsonProcessingException e) {
+            e.printStackTrace();
+        }
+        
+        Map<String, Object> grades = null;
+        
+        try {
+            Map<String, Object> data = (LinkedHashMap<String, Object>) result.get("data");
+            Map<String, Object> honor = (LinkedHashMap<String, Object>) data.get("honor");
+            grades = (LinkedHashMap<String, Object>) honor.get("grade");
+        } catch (Exception e) {
+            System.out.println("请求出错,尝试使用ChromeDriver");
             try {
-                result = mapper.readValue(res.getData().toString(), new TypeReference<LinkedHashMap<String, Object>>() {
+                driver.get(api.serverUrl + "/home/get/panel?un=" + username);
+                String html = driver.getPageSource();
+                Document doc = Jsoup.parse(html);
+                Element pre = doc.selectFirst("pre");
+                result = mapper.readValue(pre.text(), new TypeReference<LinkedHashMap<String, Object>>() {
                 });
-            } catch (JsonProcessingException e) {
-                e.printStackTrace();
-            }
-            
-            Map<String, Object> grades = null;
-            
-            try {
                 Map<String, Object> data = (LinkedHashMap<String, Object>) result.get("data");
                 Map<String, Object> honor = (LinkedHashMap<String, Object>) data.get("honor");
                 grades = (LinkedHashMap<String, Object>) honor.get("grade");
-            } catch (Exception e) {
-                System.out.println("请求出错,尝试使用ChromeDriver");
-                try {
-                    CHROMEDRIVER.get(api.serverUrl + "/home/get/panel?un=" + username);
-                    String html = CHROMEDRIVER.getPageSource();
-                    Document doc = Jsoup.parse(html);
-                    Element pre = doc.selectFirst("pre");
-                    result = mapper.readValue(pre.text(), new TypeReference<LinkedHashMap<String, Object>>() {
-                    });
-                    Map<String, Object> data = (LinkedHashMap<String, Object>) result.get("data");
-                    Map<String, Object> honor = (LinkedHashMap<String, Object>) data.get("honor");
-                    grades = (LinkedHashMap<String, Object>) honor.get("grade");
-                    if (grades == null) {
-                        bars.put("无效数据", this.bars.get("无效数据") == null ? 1 : this.bars.get("无效数据") + 1);
-                        System.out.print("昵称:" + nickname + " 活跃查询失败--无数据\n");
-                        continue;
-                    }
-                } catch (Exception ex) {
-                    this.bars.put("无效数据", this.bars.get("无效数据") == null ? 1 : this.bars.get("无效数据") + 1);
-                    System.out.print("昵称:" + nickname + " 活跃查询失败--空指针\n");
-                    continue;
+                if (grades == null) {
+                    bars.put("无效数据", this.bars.get("无效数据") == null ? 1 : this.bars.get("无效数据") + 1);
+                    System.out.print("昵称:" + nickname + " 活跃查询失败--无数据\n");
+                    return;
                 }
-            }
-            if (grades == null) {
-                bars.put("无效数据", this.bars.get("无效数据") == null ? 1 : this.bars.get("无效数据") + 1);
-                System.out.print("昵称:" + nickname + " 活跃查询失败--无数据\n");
-                continue;
-            }
-            System.out.println("用户"+nickname+"查询完毕,查询结果:");
-            final boolean[] flag = {false};
-            grades.forEach((k, v) -> {
-                if(!(Integer.parseInt(k) < LEVEL)) {
-                    flag[0] = true;
-                    List<String> forumList = (List<String>) ((LinkedHashMap<String, Object>) (v)).get("forum_list");
-                    for (String forum : forumList) {
-                        System.out.print(" " + forum);
-                        this.bars.put(forum, this.bars.get(forum) == null ? 1 : this.bars.get(forum) + 1);
-                    }
-                }
-            });
-            System.out.println();
-            if(flag[0]) {
-                bars.put("有效数据", this.bars.get("有效数据") + 1);
-            } else{
-                bars.put("无效数据", this.bars.get("无效数据") + 1);
-                System.out.print("昵称:" + nickname + " 活跃查询失败--等级均低于"+LEVEL+"级\n");
+            } catch (Exception ex) {
+                this.bars.put("无效数据", this.bars.get("无效数据") == null ? 1 : this.bars.get("无效数据") + 1);
+                System.out.print("昵称:" + nickname + " 活跃查询失败--空指针\n");
+                return;
             }
         }
+        if (grades == null) {
+            bars.put("无效数据", this.bars.get("无效数据") == null ? 1 : this.bars.get("无效数据") + 1);
+            System.out.print("昵称:" + nickname + " 活跃查询失败--无数据\n");
+            return;
+        }
+        System.out.println("用户" + nickname + "查询完毕,查询结果:");
+        final boolean[] flag = {false};
+        grades.forEach((k, v) -> {
+            if (!(Integer.parseInt(k) < LEVEL)) {
+                flag[0] = true;
+                List<String> forumList = (List<String>) ((LinkedHashMap<String, Object>) (v)).get("forum_list");
+                for (String forum : forumList) {
+                    System.out.print(" " + forum);
+                    this.bars.put(forum, this.bars.get(forum) == null ? 1 : this.bars.get(forum) + 1);
+                }
+            }
+        });
+        System.out.println();
+        if (flag[0]) {
+            bars.put("有效数据", this.bars.get("有效数据") + 1);
+        } else {
+            bars.put("无效数据", this.bars.get("无效数据") + 1);
+            System.out.print("昵称:" + nickname + " 活跃查询失败--等级均低于" + LEVEL + "级\n");
+        }
+        
     }
     
     private static String generateSign(String string) {
@@ -597,7 +605,7 @@ public class Main {
 //    }
     
     
-    public Map<String, Element> getPages(int page, String forumName1) {
+    public Map<String, Element> getPages(String forumName1) {
         System.out.println("正在获取第" + 1 + "页HTML...");
         //获取HTML
         API api = new API();
@@ -619,16 +627,16 @@ public class Main {
             StringBuilder sb = new StringBuilder(totalPage.text());
             sb.deleteCharAt(0);
             sb.deleteCharAt(sb.length() - 1);
-            if (page > Integer.parseInt(sb.toString())) {
-                page = Integer.parseInt(sb.toString());
+            if (PAGE > Integer.parseInt(sb.toString())) {
+                PAGE = Integer.parseInt(sb.toString());
                 System.out.println("页数过大,修正为：" + sb.toString());
             }
-            if (page > 500) {
+            if (PAGE > 500) {
                 System.out.println("页数超过500,修正为500");
-                page = 500;
+                PAGE = 500;
             }
         } else {
-            page = 1;
+            PAGE = 1;
         }
         
         
@@ -639,7 +647,7 @@ public class Main {
         
         final int[] nowPage = {2};
         ExecutorService executor = Executors.newFixedThreadPool(32);
-        while (nowPage[0] <= page) {
+        while (nowPage[0] <= PAGE) {
             int finalNowPage = nowPage[0];
             String finalForumName = forumName;
             executor.execute(() -> {
