@@ -100,21 +100,27 @@ public class Main {
             CountDownLatch latch = new CountDownLatch(map.size());
             map.forEach((k, v) -> {
                 executor.submit(() -> {
-                    System.out.println("正在查询第" + k + "页数据...");
-                    main.getBars(v, forumName);
-                    latch.countDown();
+                    try {
+                        System.out.println("正在查询第" + k + "页数据...");
+                        main.getBars(v, forumName);
+                        System.out.println(latch.getCount() + "页数据查询完毕.");
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    } finally {
+                        latch.countDown();
+                    }
                 });
             });
             latch.await();
             System.out.println("公开关注用户查询完毕,开始处理隐藏关注用户...");
             count = REST_USERS.size();
-            for (int i = 0; i < 6; i++) {
+            for (int i = 0; i < (Math.min(10, REST_USERS.size() / 40)); i++) {
                 drivers.add(new ChromeDriver(options));
             }
             for (int i = 0; i < REST_USERS.size(); i++) {
                 int finalI = i;
                 executor.submit(() -> {
-                    main.processRest(REST_USERS.get(finalI), drivers.get(finalI % 6));
+                    main.processRest(REST_USERS.get(finalI), drivers.get(finalI % drivers.size()));
                     System.out.println("第" + (count--) +  "个隐藏关注用户处理完毕.");
                 });
             }
