@@ -421,7 +421,7 @@ public class Main {
         String username = (String) user.get("username");
         String nickname = (String) user.get("nickname");
         Response res = null;
-        for (int i = 1; i <= 5; i++) {
+        for (int i = 1; i <= 2; i++) {
             res = api.GET("/home/get/panel", "un=" + username);
             if (res.getCode() == 200) {
                 break;
