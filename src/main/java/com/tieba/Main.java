@@ -49,49 +49,51 @@ public class Main {
     static Scanner scanner = new Scanner(System.in);
     
     public static void main(String[] args) {
-        Main main = new Main();
-        main.init();
-        main.getParams();
-        main.getPages();
-        main.process();
-        main.processResult();
-        main.report();
-        
-        Main oldMain = main;
-        while(oldMain.askForRepeat()){
-            Main newMain = new Main();
-            newMain.init();
-            newMain.selectBar();
-            if(newMain.forumName == null){
-                newMain.getParams();
-                newMain.getPages();
-            } else{
-                newMain.levelToOut = oldMain.levelToOut;
-                System.out.println("请重新设置准入等级:(缺省值:4)");
-                try {
-                    newMain.levelToValid = Integer.parseInt(scanner.nextLine());
-                } catch (NumberFormatException e) {
-                    System.out.println("等级错误,将使用默认值4");
-                    newMain.levelToValid = 4;
-                } catch (Exception e) {
-                    e.printStackTrace();
-                    System.out.println("未知错误,将使用默认值4,键入回车继续...");
-                    scanner.nextLine();
-                    newMain.levelToValid = 4;
+        try {
+            Main main = new Main();
+            main.init();
+            main.getParams();
+            main.getPages();
+            main.process();
+            main.processResult();
+            main.report();
+            
+            Main oldMain = main;
+            while(oldMain.askForRepeat()){
+                Main newMain = new Main();
+                newMain.init();
+                newMain.selectBar();
+                if(newMain.forumName == null){
+                    newMain.getParams();
+                    newMain.getPages();
+                } else{
+                    newMain.levelToOut = oldMain.levelToOut;
+                    System.out.println("请重新设置准入等级:(缺省值:4)");
+                    try {
+                        newMain.levelToValid = Integer.parseInt(scanner.nextLine());
+                    } catch (NumberFormatException e) {
+                        System.out.println("等级错误,将使用默认值4");
+                        newMain.levelToValid = 4;
+                    }
+                    if (newMain.levelToValid < 1 || newMain.levelToValid > 18 || newMain.levelToValid == 0) {
+                        System.out.println("等级错误,将使用默认值4");
+                        newMain.levelToValid = 4;
+                    }
+                    newMain.userList = ((List<Map<String, String>>) ((Map<String, Object>) oldMain.bars.get(newMain.forumName)).get("users"));
                 }
-                if (newMain.levelToValid < 1 || newMain.levelToValid > 18 || newMain.levelToValid == 0) {
-                    System.out.println("等级错误,将使用默认值4");
-                    newMain.levelToValid = 4;
-                }
-                newMain.userList = ((List<Map<String, String>>) ((Map<String, Object>) oldMain.bars.get(newMain.forumName)).get("users"));
+                newMain.process();
+                newMain.processResult();
+                newMain.report();
+                oldMain = newMain;
             }
-            newMain.process();
-            newMain.processResult();
-            newMain.report();
-            oldMain = newMain;
+            
+        } catch (Exception e) {
+            System.out.println("程序出错");
+            e.printStackTrace();
+            scanner.nextLine();
+        } finally {
+            scanner.close();
         }
-        
-        scanner.close();
     }
     
     private void init() {
@@ -300,7 +302,22 @@ public class Main {
             return;
         }
         System.out.println("请输入吧名:");
-        forumName = scanner.nextLine();
+        BufferedReader reader = null;
+        try {
+            reader = new BufferedReader(
+                    new InputStreamReader(System.in, isIdea ? "UTF-8" : "GBK")
+            );
+        } catch (UnsupportedEncodingException e) {
+            System.out.println("编码错误");
+            return;
+        }
+        try {
+            forumName = reader.readLine();
+        } catch (IOException e) {
+            System.out.println("输入错误");
+            return;
+        }
+        System.out.println("将查询 " + forumName + " 吧");
     }
     
     public void getUsers(Element container) {
