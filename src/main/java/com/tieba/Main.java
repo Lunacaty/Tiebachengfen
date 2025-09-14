@@ -11,8 +11,6 @@ import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
-import org.openqa.selenium.JavascriptException;
-import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.PageLoadStrategy;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.chrome.ChromeDriver;
@@ -23,49 +21,106 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.*;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class Main {
-    private static String BDUSS;
-    private static Integer LEVEL;
-    private static List<Map<String, Object>> REST_USERS = new ArrayList<>();
-    private static List<WebDriver> drivers = new ArrayList<>();
-    private static int PAGE;
+    private static String bduss;
+    private static String driverPath;
     
-    ConcurrentHashMap<String, Integer> bars = new ConcurrentHashMap<>();
-    volatile static int count = 0;
+    private List<Map<String, String>> userList = new ArrayList<>();
+    private List<Map<String, String>> restUsers = new ArrayList<>();
+    private List<WebDriver> drivers = new ArrayList<>();
+    private boolean isIdea;
+    private Map<String, Element> containers = new HashMap<>();
+    
+    private String forumName;
+    private Integer levelToOut;
+    private Integer levelToValid;
+    private int page;
+    
+    
+    ConcurrentHashMap<String, Object> bars = new ConcurrentHashMap<>();
+    volatile int count = 0;
     static Scanner scanner = new Scanner(System.in);
-    
-    {
-        bars.put("无效数据", 0);
-        bars.put("有效数据", 0);
-    }
     
     public static void main(String[] args) {
         Main main = new Main();
+        main.init();
+        main.getParams();
+        main.getPages();
+        main.process();
+        main.processResult();
+        main.report();
+        
+        Main oldMain = main;
+        while(oldMain.askForRepeat()){
+            Main newMain = new Main();
+            newMain.init();
+            newMain.selectBar();
+            if(newMain.forumName == null){
+                newMain.getParams();
+                newMain.getPages();
+            } else{
+                newMain.levelToOut = oldMain.levelToOut;
+                System.out.println("请重新设置准入等级:(缺省值:4)");
+                try {
+                    newMain.levelToValid = Integer.parseInt(scanner.nextLine());
+                } catch (NumberFormatException e) {
+                    System.out.println("等级错误,将使用默认值4");
+                    newMain.levelToValid = 4;
+                }
+                if (newMain.levelToValid < 1 || newMain.levelToValid > 18 || newMain.levelToValid == 0) {
+                    System.out.println("等级错误,将使用默认值4");
+                    newMain.levelToValid = 4;
+                }
+                newMain.userList = ((List<Map<String, String>>) ((Map<String, Object>) oldMain.bars.get(newMain.forumName)).get("users"));
+            }
+            newMain.process();
+            newMain.processResult();
+            newMain.report();
+            oldMain = newMain;
+        }
+        
+        scanner.close();
+    }
+    
+    private void init() {
+        bars.put("无效数据", 0);
+        bars.put("有效数据", 0);
+        
+        bduss = System.getenv("BDUSS");
+        if (bduss == null) {
+            System.out.println("请设置环境变量BDUSS");
+            scanner.nextLine();
+            scanner.close();
+            throw new RuntimeException("请设置环境变量BDUSS");
+        }
+        driverPath = System.getenv("CHROME_DRIVER_PATH");
+        
+        isIdea = System.getenv("RUNNING_IN_IDEA") == null ? false : true;
         //在IDEA中运行时，自行设置环境变量
-        boolean isIdea = System.getenv("RUNNING_IN_IDEA") == null ? false : true;
         String encoding = isIdea ? "UTF-8" : "GBK";
         System.out.println((isIdea ? "" : "非") + "IDEA环境" + "选择编码: " + encoding);
         System.out.println("用前提示:程序没有对用户输入进行任何验证，请谨慎输入");
+        
+    }
+    
+    private void getParams() {
         System.out.println("请输入贴吧名称:");
         BufferedReader reader = null;
         try {
             reader = new BufferedReader(
-                    new InputStreamReader(System.in, encoding)
+                    new InputStreamReader(System.in, isIdea ? "UTF-8" : "GBK")
             );
         } catch (UnsupportedEncodingException e) {
             System.out.println("编码错误");
             return;
         }
-        final String forumName;
         try {
             forumName = reader.readLine();
         } catch (IOException e) {
@@ -74,54 +129,96 @@ public class Main {
         }
         
         System.out.println("将查询 " + forumName + " 吧");
-        System.out.println("请输入页数:");
-        PAGE = scanner.nextInt();
-        scanner.nextLine();
-        System.out.println("请输入BDUSS:(不懂百度)");
-        BDUSS = scanner.nextLine();
-        System.out.println("请输入查询等级,这个参数指明低于该等级的用户不会被统计,并且是双向的");
-        LEVEL = scanner.nextInt();
+        System.out.println("请输入页数:(页数不可高于500,缺省值:500)");
+        page = Integer.parseInt(scanner.nextLine());
+        if (page > 500 || page < 1 || page == 0) {
+            System.out.println("页数错误,将使用默认值500");
+            page = 500;
+        }
+        
+        System.out.println("请输入准出等级,在被查询吧中,低于该等级的用户不会被纳入统计(缺省值:4)");
+        try {
+            levelToOut = Integer.parseInt(scanner.nextLine());
+        } catch (NumberFormatException e) {
+            System.out.println("等级错误,将使用默认值4");
+            levelToOut = 4;
+        }
+        if (levelToOut < 1 || levelToOut > 18 || levelToOut == 0) {
+            System.out.println("等级错误,将使用默认值4");
+            levelToOut = 4;
+        }
+        System.out.println("请输入准入等级,在被查询用户中,所得结果中低于该等级的吧不会被纳入统计(缺省值:4)");
+        try {
+            levelToValid = Integer.parseInt(scanner.nextLine());
+        } catch (NumberFormatException e) {
+            System.out.println("等级错误,将使用默认值4");
+            levelToValid = 4;
+        }
+        if (levelToValid < 1 || levelToValid > 18 || levelToValid == 0) {
+            System.out.println("等级错误,将使用默认值4");
+            levelToValid = 4;
+        }
         
         System.out.println("确定查询条件:");
         System.out.println("贴吧名称: " + forumName);
-        System.out.println("页数: " + PAGE);
-        System.out.println("Level: " + LEVEL);
+        System.out.println("页数: " + page);
+        System.out.println("Level: " + levelToOut);
+    }
+    
+    private void process() {
         try {
             
             ChromeOptions options = new ChromeOptions();
             
             options.setPageLoadStrategy(PageLoadStrategy.NONE);
             options.addArguments("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36...");
-            Map<String, Element> map = main.getPages(forumName);
-            System.setProperty("webdriver.chrome.driver", "E:\\Downloads\\chromedriver-win64\\chromedriver.exe");
+            System.setProperty("webdriver.chrome.driver", driverPath);
 //            WebDriver driver = new ChromeDriver(options);
 //            CHROMEDRIVER = driver;
             ExecutorService executor = Executors.newFixedThreadPool(32);
-            CountDownLatch latch = new CountDownLatch(map.size());
-            map.forEach((k, v) -> {
+            CountDownLatch latch = new CountDownLatch(containers.size());
+            if(containers.size() != 0) {
+                containers.forEach((k, v) -> {
+                    executor.submit(() -> {
+                        try {
+                            System.out.println("正在记入第" + k + "页用户...");
+                            getUsers(v);
+                            System.out.println(latch.getCount() + "页用户记录完毕.");
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        } finally {
+                            latch.countDown();
+                        }
+                    });
+                });
+                latch.await();
+                System.out.println("用户记录完毕.");
+            }
+            CountDownLatch latch2 = new CountDownLatch(userList.size());
+            for (int i = 0; i < userList.size(); i++) {
+                int finalI = i;
                 executor.submit(() -> {
                     try {
-                        System.out.println("正在查询第" + k + "页数据...");
-                        main.getBars(v, forumName);
-                        System.out.println(latch.getCount() + "页数据查询完毕.");
+                        getBars(userList.get(finalI));
                     } catch (Exception e) {
                         e.printStackTrace();
                     } finally {
-                        latch.countDown();
+                        latch2.countDown();
                     }
                 });
-            });
-            latch.await();
+            }
+            latch2.await();
             System.out.println("公开关注用户查询完毕,开始处理隐藏关注用户...");
-            count = REST_USERS.size();
-            for (int i = 0; i < (Math.min(10, REST_USERS.size() / 40)); i++) {
+            
+            count = restUsers.size();
+            for (int i = 0; i <= (Math.min(10, restUsers.size() / 40)); i++) {
                 drivers.add(new ChromeDriver(options));
             }
-            for (int i = 0; i < REST_USERS.size(); i++) {
+            for (int i = 0; i < restUsers.size(); i++) {
                 int finalI = i;
                 executor.submit(() -> {
-                    main.processRest(REST_USERS.get(finalI), drivers.get(finalI % drivers.size()));
-                    System.out.println("第" + (count--) +  "个隐藏关注用户处理完毕.");
+                    processRest(restUsers.get(finalI), drivers.get(finalI % drivers.size()));
+                    System.out.println("第" + (count--) + "个隐藏关注用户处理完毕.");
                 });
             }
             
@@ -131,123 +228,195 @@ public class Main {
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }
-            
+            System.out.println("隐藏关注用户处理完毕.");
+            for (WebDriver driver : drivers) {
+                driver.quit();
+            }
         } catch (Exception e) {
             e.printStackTrace();
         }
-        List<Map.Entry<String, Integer>> list = new ArrayList<>(main.bars.entrySet());
-        list.sort((entry1, entry2) -> -entry2.getValue().compareTo(entry1.getValue()));
-        for (Map.Entry<String, Integer> entry : list) {
-            System.out.println(entry.getKey() + ": " + entry.getValue());
-        }
-        System.out.println("查询完毕,查询条件:");
-        System.out.println("贴吧名称: " + forumName);
-        System.out.println("页数: " + PAGE);
-        System.out.println("Level: " + LEVEL);
-        System.out.println("键入回车退出程序");
-        scanner.nextLine();
-        scanner.nextLine();
     }
     
-    @SneakyThrows
-    public void getBars(Element container, String forumName) {
+    private void processResult() {
+        List<Map.Entry<String, Object>> list = new ArrayList<>(bars.entrySet());
+        list.sort((entry1, entry2) -> {
+          int count1,count2;
+          if(!entry1.getKey().equals("有效数据") && !entry1.getKey().equals("无效数据")){
+              count1 = ((Integer) ((Map<String, Object>)(entry1.getValue())).get("count"));
+          } else {
+              count1 = ((Integer)  entry1.getValue());
+          }
+          if(!entry2.getKey().equals("有效数据") && !entry2.getKey().equals("无效数据")){
+              count2 = ((Integer) ((Map<String, Object>)(entry2.getValue())).get("count"));
+          } else {
+              count2 = ((Integer)  entry2.getValue());
+          }
+          return count1 - count2;
+        });
+        for (Map.Entry<String, Object> entry : list) {
+            if(entry.getKey().equals("users")){
+                continue;
+            }
+            Integer value = null;
+            if(!entry.getKey().equals("有效数据") && !entry.getKey().equals("无效数据")){
+                value = ((Integer)((Map<String, Object>)entry.getValue()).get("count"));
+            } else {
+                value = (Integer) entry.getValue();
+            }
+            System.out.println(entry.getKey() + ": " + value);
+        }
+    }
+    
+    private void report() {
+        System.out.println("查询完毕,查询条件:");
+        System.out.println("贴吧名称: " + forumName);
+        System.out.println("页数: " + page);
+        System.out.println("Level: " + levelToOut);
+    }
+    
+    private boolean askForRepeat(){
+        System.out.println("是否重复查询?(y/n)");
+        String answer = scanner.nextLine().toLowerCase();
+        if (answer.equals("y")) {
+            return true;
+        }
+        return false;
+    }
+    private void selectBar(){
+        System.out.println("是否基于上次查询结果中的某个吧进行查询?(y/n)");
+        String answer = scanner.nextLine().toLowerCase();
+        if (!answer.equals("y")) {
+            return;
+        }
+        System.out.println("请输入吧名:");
+        forumName = scanner.nextLine();
+    }
+    
+    public void getUsers(Element container) {
         Elements users = container.select("span.member");
-        Scanner inputScanner = new Scanner(System.in);
-        Boolean flag = false;
-        API api = new API();
         for (Element user : users) {
-            
-            System.out.println("正在查询第" + (count + 1) + "个用户");
-            count++;
-            
             Element usernameEle = user.selectFirst(".user_name");
             String username = usernameEle.attr("title");
             String nickname = usernameEle.text();
-            
             Element levelDiv = user.selectFirst(".forum-level-bawu");
             String clazz = levelDiv.attr("class");
             Pattern patt = Pattern.compile("(?<=bawu-info-lv)(\\d{1,2})");
             Matcher matc = patt.matcher(clazz);
             String level = matc.find() ? matc.group(0) : null;
-            if (Integer.parseInt(level) < LEVEL) {
-                System.out.println("用户" + nickname + "在的等级:" + level + "低于" + LEVEL + "级,跳过.");
-                bars.put("无效数据", bars.get("无效数据") + 1);
+            if (Integer.parseInt(level) < levelToOut) {
+                System.out.println("用户" + nickname + "在的等级:" + level + "低于" + levelToOut + "级,跳过.");
+                bars.put("无效数据", (Integer) bars.get("无效数据") + 1);
                 continue;
             }
-            String userJson = "";
-            for (int i = 1; i <= 5; i++) {
-                Response res = api.GET("/i/sys/user_json", "un=" + username, "ie=utf-8");
-                if (res.getCode() == 200) {
-                    userJson = res.getData().toString();
-                    break;
-                }
-                System.out.println("第" + i + "次请求失败,尝试第" + (i + 1) + "次...");
-            }
-            Pattern pat = Pattern.compile("(?<=\"id\":)(\\d+)");
-            Matcher mat = pat.matcher(userJson);
-            String friendId = mat.find() ? mat.group(0) : null;
-            if (friendId == null) {
-                System.out.println("friendId不存在");
-                continue;
-            }
-            System.out.println("得到" + nickname + "friendId: " + friendId);
+            Map<String, String> userMap = new HashMap<>();
+            userMap.put("username", username);
+            userMap.put("nickname", nickname);
+            userMap.put("level", level);
             
-            HashMap<String, String> body = new HashMap<>();
-            body.put("BDUSS", BDUSS);
-            body.put("_client_version", "12.57.4.2");
-            body.put("friend_uid", friendId);
-            body.put("page_no", "1");
-            body.put("page_size", "400");
-            body.put("pn", "1");
-            
-            String rowSign = "BDUSS=" + BDUSS + "_client_version=12.57.4.2friend_uid=" + friendId + "page_no=1page_size=400pn=1";
-            String sign = generateSign(rowSign);
-            System.out.println("生成签名: " + sign);
-            
-            body.put("sign", sign);
-            Response res = null;
-            for (int i = 1; i <= 5; i++) {
-                res = api.POST("/c/f/forum/like", body);
-                if (res.getCode() == 200) {
-                    break;
-                }
-                System.out.println("第" + i + "次请求失败,尝试第" + (i + 1) + "次...");
-            }
-            ObjectMapper mapper = new ObjectMapper();
-            Map<String, Object> result = mapper.readValue(res.getData().toString(), new TypeReference<LinkedHashMap<String, Object>>() {
-            });
-            
-            List<Map<String, Object>> non_gconforum = null;
-            try {
-                Map<String, Object> forum_list = (Map<String, Object>) result.get("forum_list");
-                non_gconforum = (ArrayList<Map<String, Object>>) forum_list.get("non-gconforum");
-            } catch (Exception e) {
-                Map<String, Object> restUser = new HashMap<>();
-                restUser.put("nickname", nickname);
-                restUser.put("username", username);
-                REST_USERS.add(restUser);
-                System.out.println("异常用户,放入待处理列表");
-                continue;
-            }
-            List<String> forumResult = new ArrayList<>();
-            for (Map<String, Object> forum : non_gconforum) {
-                if (Integer.parseInt((String) forum.get("level_id")) < LEVEL) {
-                    System.out.println(nickname + "在" + forum.get("name") + "的等级:" + forum.get("level_id") + "低于" + LEVEL + "级,跳过.无效数据");
-                    continue;
-                }
-                forumResult.add(forum.get("name").toString());
-            }
-            System.out.println("用户" + nickname + "查询完毕,查询结果: ");
-            for (String forum : forumResult) {
-                System.out.print(forum + " ");
-                bars.put(forum, bars.get(forum) == null ? 1 : bars.get(forum) + 1);
-            }
-            System.out.println();
-            bars.put("有效数据", bars.get("有效数据") + 1);
+            userList.add(userMap);
         }
     }
     
-    private void processRest(Map<String, Object> user, WebDriver driver) {
+    @SneakyThrows
+    public void getBars(Map<String, String> userMap) {
+        API api = new API();
+        
+        String userJson = "";
+        for (int i = 1; i <= 5; i++) {
+            Response res = api.GET("/i/sys/user_json", "un=" + userMap.get("username"), "ie=utf-8");
+            if (res.getCode() == 200) {
+                userJson = res.getData().toString();
+                break;
+            }
+            System.out.println("第" + i + "次请求失败,尝试第" + (i + 1) + "次...");
+        }
+        Pattern pat = Pattern.compile("(?<=\"id\":)(\\d+)");
+        Matcher mat = pat.matcher(userJson);
+        String friendId = mat.find() ? mat.group(0) : null;
+        if (friendId == null) {
+            System.out.println("friendId不存在");
+            Map<String, String> restUser = new HashMap<>();
+            restUser.put("nickname", userMap.get("nickname"));
+            restUser.put("username", userMap.get("username"));
+            restUser.put("level", userMap.get("level"));
+            restUsers.add(restUser);
+            System.out.println("异常用户,放入待处理列表");
+            return;
+        }
+        System.out.println("得到" + userMap.get("nickname") + "friendId: " + friendId);
+        
+        HashMap<String, String> body = new HashMap<>();
+        body.put("BDUSS", bduss);
+        body.put("_client_version", "12.57.4.2");
+        body.put("friend_uid", friendId);
+        body.put("page_no", "1");
+        body.put("page_size", "400");
+        body.put("pn", "1");
+        
+        String rowSign = "BDUSS=" + bduss + "_client_version=12.57.4.2friend_uid=" + friendId + "page_no=1page_size=400pn=1";
+        String sign = generateSign(rowSign);
+        System.out.println("生成签名: " + sign);
+        
+        body.put("sign", sign);
+        Response res = null;
+        for (int i = 1; i <= 5; i++) {
+            res = api.POST("/c/f/forum/like", body);
+            if (res.getCode() == 200) {
+                break;
+            }
+            System.out.println("第" + i + "次请求失败,尝试第" + (i + 1) + "次...");
+        }
+        ObjectMapper mapper = new ObjectMapper();
+        Map<String, Object> result = mapper.readValue(res.getData().toString(), new TypeReference<LinkedHashMap<String, Object>>() {
+        });
+        
+        List<Map<String, Object>> non_gconforum = null;
+        try {
+            Map<String, Object> forum_list = (Map<String, Object>) result.get("forum_list");
+            non_gconforum = (ArrayList<Map<String, Object>>) forum_list.get("non-gconforum");
+        } catch (Exception e) {
+            Map<String, String> restUser = new HashMap<>();
+            restUser.put("nickname", userMap.get("nickname"));
+            restUser.put("username", userMap.get("username"));
+            restUser.put("level", userMap.get("level"));
+            restUsers.add(restUser);
+            System.out.println("异常用户,放入待处理列表");
+            return;
+        }
+        List<String> forumResult = new ArrayList<>();
+        for (Map<String, Object> forum : non_gconforum) {
+            if (Integer.parseInt((String) forum.get("level_id")) < levelToValid) {
+                System.out.println(userMap.get("nickname") + "在" + forum.get("name") + "的等级:" + forum.get("level_id") + "低于" + levelToValid + "级,跳过.无效数据");
+                continue;
+            }
+            forumResult.add(forum.get("name").toString());
+        }
+        System.out.println("用户" + userMap.get("nickname") + "查询完毕,查询结果: ");
+        for (String forum : forumResult) {
+            System.out.print(forum + " ");
+            if(bars.get(forum) == null){
+                Map<String, Object> bar = new HashMap<>();
+                bar.put("count", 1);
+                List<Map<String, String>> users = new ArrayList<>();
+                Map<String, String> user = new HashMap<>();
+                user.put("username", userMap.get("username"));
+                user.put("nickname", userMap.get("nickname"));
+                user.put("level", userMap.get("level"));
+                users.add(user);
+                bar.put("users", users);
+                bars.put(forum, bar);
+            } else{
+                Map<String, Object> bar = (Map<String, Object>) bars.get(forum);
+                List<Map<String, String>> users = (List<Map<String, String>>) bar.get("users");
+                bar.put("count", (Integer) bar.get("count") + 1);
+                users.add(userMap);
+            }
+        }
+        System.out.println();
+        bars.put("有效数据", (Integer) bars.get("有效数据") + 1);
+    }
+    
+    private void processRest(Map<String, String> user, WebDriver driver) {
         API api = new API();
         String username = (String) user.get("username");
         String nickname = (String) user.get("nickname");
@@ -287,39 +456,51 @@ public class Main {
                 Map<String, Object> honor = (LinkedHashMap<String, Object>) data.get("honor");
                 grades = (LinkedHashMap<String, Object>) honor.get("grade");
                 if (grades == null) {
-                    bars.put("无效数据", this.bars.get("无效数据") == null ? 1 : this.bars.get("无效数据") + 1);
+                    bars.put("无效数据", this.bars.get("无效数据") == null ? 1 : (Integer) this.bars.get("无效数据") + 1);
                     System.out.print("昵称:" + nickname + " 活跃查询失败--无数据\n");
                     return;
                 }
             } catch (Exception ex) {
-                this.bars.put("无效数据", this.bars.get("无效数据") == null ? 1 : this.bars.get("无效数据") + 1);
+                this.bars.put("无效数据", this.bars.get("无效数据") == null ? 1 : (Integer) this.bars.get("无效数据") + 1);
                 System.out.print("昵称:" + nickname + " 活跃查询失败--空指针\n");
                 return;
             }
         }
         if (grades == null) {
-            bars.put("无效数据", this.bars.get("无效数据") == null ? 1 : this.bars.get("无效数据") + 1);
+            bars.put("无效数据", this.bars.get("无效数据") == null ? 1 : (Integer) this.bars.get("无效数据") + 1);
             System.out.print("昵称:" + nickname + " 活跃查询失败--无数据\n");
             return;
         }
         System.out.println("用户" + nickname + "查询完毕,查询结果:");
         final boolean[] flag = {false};
         grades.forEach((k, v) -> {
-            if (!(Integer.parseInt(k) < LEVEL)) {
+            if (!(Integer.parseInt(k) < levelToValid)) {
                 flag[0] = true;
                 List<String> forumList = (List<String>) ((LinkedHashMap<String, Object>) (v)).get("forum_list");
                 for (String forum : forumList) {
                     System.out.print(" " + forum);
-                    this.bars.put(forum, this.bars.get(forum) == null ? 1 : this.bars.get(forum) + 1);
+                    if(bars.get(forum) == null){
+                        Map<String, Object> bar = new HashMap<>();
+                        bar.put("count", 1);
+                        List<Map<String, String>> users = new ArrayList<>();
+                        users.add(user);
+                        bar.put("users", users);
+                        bars.put(forum, bar);
+                    } else{
+                        Map<String, Object> bar = (Map<String, Object>) bars.get(forum);
+                        List<Map<String, String>> users = (List<Map<String, String>>) bar.get("users");
+                        bar.put("count", (Integer) bar.get("count") + 1);
+                        users.add(user);
+                    }
                 }
             }
         });
         System.out.println();
         if (flag[0]) {
-            bars.put("有效数据", this.bars.get("有效数据") + 1);
+            bars.put("有效数据",(Integer) this.bars.get("有效数据") + 1);
         } else {
-            bars.put("无效数据", this.bars.get("无效数据") + 1);
-            System.out.print("昵称:" + nickname + " 活跃查询失败--等级均低于" + LEVEL + "级\n");
+            bars.put("无效数据", (Integer) this.bars.get("无效数据") + 1);
+            System.out.print("昵称:" + nickname + " 活跃查询失败--等级均低于" + levelToValid + "级\n");
         }
         
     }
@@ -611,18 +792,19 @@ public class Main {
 //    }
     
     
-    public Map<String, Element> getPages(String forumName1) {
+    public void getPages() {
         System.out.println("正在获取第" + 1 + "页HTML...");
         //获取HTML
         API api = new API();
-        String forumName = null;
+        String forumName1 = null;
         try {
-            System.out.println("将吧名" + forumName1 + "按GBK编码为:" + URLEncoder.encode(forumName1, "GBK"));
-            forumName = URLEncoder.encode(forumName1, "GBK");
+            forumName1 = URLEncoder.encode(forumName, "GBK");
+            System.out.println("将吧名" + forumName + "按GBK编码为:" + forumName1);
+            
         } catch (UnsupportedEncodingException e) {
             e.printStackTrace();
         }
-        Response res = api.GET("/bawu2/platform/listMemberInfo?word=" + forumName + "&pn=1");
+        Response res = api.GET("/bawu2/platform/listMemberInfo?word=" + forumName1 + "&pn=1");
         String html = res.getData().toString();
         
         final Document[] doc = {Jsoup.parse(html)};
@@ -633,29 +815,26 @@ public class Main {
             StringBuilder sb = new StringBuilder(totalPage.text());
             sb.deleteCharAt(0);
             sb.deleteCharAt(sb.length() - 1);
-            if (PAGE > Integer.parseInt(sb.toString())) {
-                PAGE = Integer.parseInt(sb.toString());
+            if (page > Integer.parseInt(sb.toString())) {
+                page = Integer.parseInt(sb.toString());
                 System.out.println("页数过大,修正为：" + sb.toString());
             }
-            if (PAGE > 500) {
-                System.out.println("页数超过500,修正为500");
-                PAGE = 500;
-            }
         } else {
-            PAGE = 1;
+            page = 1;
         }
         
         
         //获取会员容器
         Element container = doc[0].selectFirst(".forum_info_section.member_wrap.clearfix.bawu-info");
-        Map<String, Element> containers = new HashMap<>();
         containers.put(1 + "", container);
-        
+        if(page == 1){
+            return;
+        }
         final int[] nowPage = {2};
         ExecutorService executor = Executors.newFixedThreadPool(32);
-        while (nowPage[0] <= PAGE) {
+        while (nowPage[0] <= page) {
             int finalNowPage = nowPage[0];
-            String finalForumName = forumName;
+            String finalForumName = forumName1;
             executor.execute(() -> {
                 System.out.println("正在获取第" + finalNowPage + "页HTML...");
                 Response response = api.GET("/bawu2/platform/listMemberInfo?word=" + finalForumName + "&pn=" + finalNowPage);
@@ -673,7 +852,5 @@ public class Main {
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }
-        
-        return containers;
     }
 }
