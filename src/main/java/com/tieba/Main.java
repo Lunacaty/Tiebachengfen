@@ -73,6 +73,11 @@ public class Main {
                 } catch (NumberFormatException e) {
                     System.out.println("等级错误,将使用默认值4");
                     newMain.levelToValid = 4;
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    System.out.println("未知错误,将使用默认值4,键入回车继续...");
+                    scanner.nextLine();
+                    newMain.levelToValid = 4;
                 }
                 if (newMain.levelToValid < 1 || newMain.levelToValid > 18 || newMain.levelToValid == 0) {
                     System.out.println("等级错误,将使用默认值4");
@@ -130,8 +135,13 @@ public class Main {
         
         System.out.println("将查询 " + forumName + " 吧");
         System.out.println("请输入页数:(页数不可高于500,缺省值:500)");
-        page = Integer.parseInt(scanner.nextLine());
-        if (page > 500 || page < 1 || page == 0) {
+        try {
+            page = Integer.parseInt(scanner.nextLine());
+            if (page > 500 || page < 1 || page == 0) {
+                System.out.println("页数错误,将使用默认值500");
+                page = 500;
+            }
+        } catch (NumberFormatException e) {
             System.out.println("页数错误,将使用默认值500");
             page = 500;
         }
@@ -271,7 +281,8 @@ public class Main {
         System.out.println("查询完毕,查询条件:");
         System.out.println("贴吧名称: " + forumName);
         System.out.println("页数: " + page);
-        System.out.println("Level: " + levelToOut);
+        System.out.println("准出等级: " + levelToOut);
+        System.out.println("准入等级: " + levelToValid);
     }
     
     private boolean askForRepeat(){
