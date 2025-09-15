@@ -195,7 +195,7 @@ public class Main {
                         try {
                             System.out.println("正在记入第" + k + "页用户...");
                             getUsers(v);
-                            System.out.println(latch.getCount() + "页用户记录完毕.");
+                            System.out.println(k + "页用户记录完毕.");
                         } catch (Exception e) {
                             e.printStackTrace();
                         } finally {
