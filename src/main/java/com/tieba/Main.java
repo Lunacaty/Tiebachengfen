@@ -59,14 +59,14 @@ public class Main {
             main.report();
             
             Main oldMain = main;
-            while(oldMain.askForRepeat()){
+            while (oldMain.askForRepeat()) {
                 Main newMain = new Main();
                 newMain.init();
                 newMain.selectBar();
-                if(newMain.forumName == null){
+                if (newMain.forumName == null) {
                     newMain.getParams();
                     newMain.getPages();
-                } else{
+                } else {
                     newMain.levelToOut = oldMain.levelToOut;
                     System.out.println("请重新设置准入等级:(缺省值:4)");
                     try {
@@ -189,7 +189,7 @@ public class Main {
 //            CHROMEDRIVER = driver;
             ExecutorService executor = Executors.newFixedThreadPool(32);
             CountDownLatch latch = new CountDownLatch(containers.size());
-            if(containers.size() != 0) {
+            if (containers.size() != 0) {
                 containers.forEach((k, v) -> {
                     executor.submit(() -> {
                         try {
@@ -252,30 +252,33 @@ public class Main {
     private void processResult() {
         List<Map.Entry<String, Object>> list = new ArrayList<>(bars.entrySet());
         list.sort((entry1, entry2) -> {
-          int count1,count2;
-          if(!entry1.getKey().equals("有效数据") && !entry1.getKey().equals("无效数据")){
-              count1 = ((Integer) ((Map<String, Object>)(entry1.getValue())).get("count"));
-          } else {
-              count1 = ((Integer)  entry1.getValue());
-          }
-          if(!entry2.getKey().equals("有效数据") && !entry2.getKey().equals("无效数据")){
-              count2 = ((Integer) ((Map<String, Object>)(entry2.getValue())).get("count"));
-          } else {
-              count2 = ((Integer)  entry2.getValue());
-          }
-          return count1 - count2;
+            int count1, count2;
+            if (!entry1.getKey().equals("有效数据") && !entry1.getKey().equals("无效数据")) {
+                count1 = ((Integer) ((Map<String, Object>) (entry1.getValue())).get("count"));
+            } else {
+                count1 = ((Integer) entry1.getValue());
+            }
+            if (!entry2.getKey().equals("有效数据") && !entry2.getKey().equals("无效数据")) {
+                count2 = ((Integer) ((Map<String, Object>) (entry2.getValue())).get("count"));
+            } else {
+                count2 = ((Integer) entry2.getValue());
+            }
+            return count1 - count2;
         });
         for (Map.Entry<String, Object> entry : list) {
-            if(entry.getKey().equals("users")){
+            if (entry.getKey().equals("users")) {
                 continue;
             }
             Integer value = null;
-            if(!entry.getKey().equals("有效数据") && !entry.getKey().equals("无效数据")){
-                value = ((Integer)((Map<String, Object>)entry.getValue()).get("count"));
+            if (!entry.getKey().equals("有效数据") && !entry.getKey().equals("无效数据")) {
+                value = ((Integer) ((Map<String, Object>) entry.getValue()).get("count"));
             } else {
                 value = (Integer) entry.getValue();
             }
-            System.out.println(entry.getKey() + ": " + value);
+//            if(value >= 100){
+//                System.out.println("1");
+//            }
+            System.out.println(entry.getKey() + ": " + value + (!entry.getKey().contains("数据") ? "  等级指数: " + (float) Math.log10(((Integer) ((Map<String, Object>) entry.getValue()).get("level"))) : ""));
         }
     }
     
@@ -287,7 +290,7 @@ public class Main {
         System.out.println("准入等级: " + levelToValid);
     }
     
-    private boolean askForRepeat(){
+    private boolean askForRepeat() {
         System.out.println("是否重复查询?(y/n)");
         String answer = scanner.nextLine().toLowerCase();
         if (answer.equals("y")) {
@@ -295,7 +298,8 @@ public class Main {
         }
         return false;
     }
-    private void selectBar(){
+    
+    private void selectBar() {
         System.out.println("是否基于上次查询结果中的某个吧进行查询?(y/n)");
         String answer = scanner.nextLine().toLowerCase();
         if (!answer.equals("y")) {
@@ -412,19 +416,22 @@ public class Main {
             return;
         }
         List<String> forumResult = new ArrayList<>();
+        Map<String, Integer> levelMap = new HashMap<>();
         for (Map<String, Object> forum : non_gconforum) {
             if (Integer.parseInt((String) forum.get("level_id")) < levelToValid) {
                 System.out.println(userMap.get("nickname") + "在" + forum.get("name") + "的等级:" + forum.get("level_id") + "低于" + levelToValid + "级,跳过.无效数据");
                 continue;
             }
             forumResult.add(forum.get("name").toString());
+            levelMap.put(forum.get("name").toString(), Integer.parseInt(forum.get("level_id").toString()));
         }
         System.out.println("用户" + userMap.get("nickname") + "查询完毕,查询结果: ");
         for (String forum : forumResult) {
-            System.out.print(forum + " ");
-            if(bars.get(forum) == null){
+            System.out.print(forum + "-"+ levelMap.get(forum) +  " ");
+            if (bars.get(forum) == null) {
                 Map<String, Object> bar = new HashMap<>();
                 bar.put("count", 1);
+                bar.put("level", exp(levelMap.get(forum)));
                 List<Map<String, String>> users = new ArrayList<>();
                 Map<String, String> user = new HashMap<>();
                 user.put("username", userMap.get("username"));
@@ -433,15 +440,57 @@ public class Main {
                 users.add(user);
                 bar.put("users", users);
                 bars.put(forum, bar);
-            } else{
+            } else {
                 Map<String, Object> bar = (Map<String, Object>) bars.get(forum);
                 List<Map<String, String>> users = (List<Map<String, String>>) bar.get("users");
                 bar.put("count", (Integer) bar.get("count") + 1);
+                bar.put("level", exp(levelMap.get(forum)) + (Integer) bar.get("level"));
                 users.add(userMap);
             }
         }
         System.out.println();
         bars.put("有效数据", (Integer) bars.get("有效数据") + 1);
+    }
+    
+    private int exp(int level) {
+        switch (level) {
+            case 1:
+                return 1;
+            case 2:
+                return 5;
+            case 3:
+                return 15;
+            case 4:
+                return 30;
+            case 5:
+                return 50;
+            case 6:
+                return 100;
+            case 7:
+                return 200;
+            case 8:
+                return 500;
+            case 9:
+                return 1000;
+            case 10:
+                return 2000;
+            case 11:
+                return 3000;
+            case 12:
+                return 6000;
+            case 13:
+                return 10000;
+            case 14:
+                return 30000;
+            case 15:
+                return 60000;
+            case 16:
+                return 100000;
+            case 17:
+                return 300000;
+            default:
+                return 0;
+        }
     }
     
     private void processRest(Map<String, String> user, WebDriver driver) {
@@ -506,18 +555,20 @@ public class Main {
                 flag[0] = true;
                 List<String> forumList = (List<String>) ((LinkedHashMap<String, Object>) (v)).get("forum_list");
                 for (String forum : forumList) {
-                    System.out.print(" " + forum);
-                    if(bars.get(forum) == null){
+                    System.out.print(" " + forum +"-" + k + " ");
+                    if (bars.get(forum) == null) {
                         Map<String, Object> bar = new HashMap<>();
                         bar.put("count", 1);
+                        bar.put("level", exp(Integer.parseInt(k)));
                         List<Map<String, String>> users = new ArrayList<>();
                         users.add(user);
                         bar.put("users", users);
                         bars.put(forum, bar);
-                    } else{
+                    } else {
                         Map<String, Object> bar = (Map<String, Object>) bars.get(forum);
                         List<Map<String, String>> users = (List<Map<String, String>>) bar.get("users");
                         bar.put("count", (Integer) bar.get("count") + 1);
+                        bar.put("level", (Integer) bar.get("level") + exp(Integer.parseInt(k)));
                         users.add(user);
                     }
                 }
@@ -525,7 +576,7 @@ public class Main {
         });
         System.out.println();
         if (flag[0]) {
-            bars.put("有效数据",(Integer) this.bars.get("有效数据") + 1);
+            bars.put("有效数据", (Integer) this.bars.get("有效数据") + 1);
         } else {
             bars.put("无效数据", (Integer) this.bars.get("无效数据") + 1);
             System.out.print("昵称:" + nickname + " 活跃查询失败--等级均低于" + levelToValid + "级\n");
@@ -855,7 +906,7 @@ public class Main {
         //获取会员容器
         Element container = doc[0].selectFirst(".forum_info_section.member_wrap.clearfix.bawu-info");
         containers.put(1 + "", container);
-        if(page == 1){
+        if (page == 1) {
             return;
         }
         final int[] nowPage = {2};
