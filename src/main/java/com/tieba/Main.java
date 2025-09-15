@@ -433,11 +433,7 @@ public class Main {
                 bar.put("count", 1);
                 bar.put("level", exp(levelMap.get(forum)));
                 List<Map<String, String>> users = new ArrayList<>();
-                Map<String, String> user = new HashMap<>();
-                user.put("username", userMap.get("username"));
-                user.put("nickname", userMap.get("nickname"));
-                user.put("level", userMap.get("level"));
-                users.add(user);
+                users.add(userMap);
                 bar.put("users", users);
                 bars.put(forum, bar);
             } else {
