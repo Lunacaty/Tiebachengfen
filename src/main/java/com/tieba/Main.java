@@ -278,7 +278,7 @@ public class Main {
 //            if(value >= 100){
 //                System.out.println("1");
 //            }
-            System.out.println(entry.getKey() + ": " + value + (!entry.getKey().contains("数据") ? "  等级指数: " + (float) Math.log10(((Integer) ((Map<String, Object>) entry.getValue()).get("level"))) : ""));
+            System.out.println(entry.getKey() + ": " + value + (!entry.getKey().contains("数据") ? " 经验总数: " + ((Integer) ((Map<String, Object>) entry.getValue()).get("level")/1000) + "k" : ""));
         }
     }
     
